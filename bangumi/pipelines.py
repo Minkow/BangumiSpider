@@ -28,7 +28,7 @@ class BangumiPipeline(object):
 
 class BangumiAnimatePipelines(object):
     def __init__(self):
-        self.collection = db['Animate']
+        self.collection = db['Animate1']
 
     def process_item(self, item, spider):
         if isinstance(item, AnimateItem):

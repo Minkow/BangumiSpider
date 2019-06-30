@@ -99,7 +99,7 @@ ITEM_PIPELINES = {
     'bangumi.pipelines.BangumiMusicPipelines': 301,  # 保存专辑信息
 
 }
-IMAGES_STORE = "H:\\download_img"
+IMAGES_STORE = "D:\\download_img"
 IMAGES_EXPIRES = 90  # 过期天数
 IMAGES_MIN_HEIGHT = 0  # 图片的最小高度
 IMAGES_MIN_WIDTH = 0  # 图片的最小宽度

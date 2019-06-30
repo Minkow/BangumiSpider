@@ -59,6 +59,7 @@ class RandomProxy(object):
         elif self.mode == Mode.SET_CUSTOM_PROXY:
             custom_proxy = settings.get('CUSTOM_PROXY')
             self.proxies = {}
+            print(custom_proxy)
             parts = re.match('(\w+://)(\w+:\w+@)?(.+)', custom_proxy.strip())
             if not parts:
                 raise ValueError('CUSTOM_PROXY is not well formatted')
