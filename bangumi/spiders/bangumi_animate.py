@@ -2,6 +2,7 @@
 
 import datetime
 import re
+import time
 from collections import OrderedDict
 
 from logbook import Logger
@@ -18,16 +19,21 @@ logging = Logger("Animate Spider")
 class BangumiAnimateSpider(scrapy.Spider):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        if not SpiderDebug:
-            self.collection = db['BangumiID']
+        # if not SpiderDebug:
+        if False:
+            self.collection = db['Id'] #db = connection['bangumi']
             id_list = [subject['bangumi_id'] for subject in self.collection.find({"bangumi_type": "animate"})]
-            spided_id = [animate['bangumi_id'] for animate in db['Animate'].find()]
+            spided_id = [animate['bangumi_id'] for animate in db['Animate1'].find()]
+            print(len(id_list),len(spided_id))
+            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             for animate_id in spided_id:
-                id_list.remove(animate_id)
+                if (animate_id != None):
+                    id_list.remove(animate_id)
+
             self.start_urls = ['http://bangumi.tv/subject/%s' % subject_id for subject_id in
                                id_list]
         else:
-            self.start_urls = ['http://bangumi.tv/subject/218707']
+            self.start_urls = ['https://bangumi.tv/subject/324']
 
     name = "bangumi_animate"
     allowed_domains = ["bangumi.tv"]
@@ -35,10 +41,14 @@ class BangumiAnimateSpider(scrapy.Spider):
 
     # 获取番剧信息
     def parse(self, response):
+        print(response.xpath('//title'))
         animate = AnimateItem()
         # Get animate bangumi_id
         animate['bangumi_id'] = get_field_value(
             response.selector.xpath('//*[@id="headerSubject"]/h1/a/@href').re('/subject/(\d+)'))
+        if(animate['bangumi_id'] == None):
+            animate['bangumi_id'] = str(response).strip().split('/')[-1][:-1]
+            time.sleep(0.4)
         # Get animate name
         animate['name'] = get_field_value(response.selector.xpath('//*[@id="headerSubject"]/h1/a/text()').extract())
         # Get animate summary
@@ -51,6 +61,8 @@ class BangumiAnimateSpider(scrapy.Spider):
         animate['cover_url'] = 'http:%s' % get_field_value(
             response.xpath('//*[@id="bangumiInfo"]/div/div/a/@href').extract())
         # Get animate info
+        animate['score'] = float(response.xpath('//*[@class="number"]/text()').extract()[0])
+        animate['rank'] = response.xpath('//*[@class="alarm"]/text()').extract()[0]
         animate['info'] = dict()
         for item in Selector(response=response).xpath('//*[@id="infobox"]/li'):
             animate_info_title = item.xpath('./span/text()').extract()[0][:-2]
@@ -96,8 +108,9 @@ class BangumiAnimateSpider(scrapy.Spider):
             else:
                 for value in item.xpath('.//a/text()').extract():
                     animate['info'][animate_info_title].append(value)
-        tag_field = response.xpath('//*[@id="subject_detail"]//div[@class="inner"]/a/text()')
-        animate['tag'] = [tag.extract() for tag in tag_field]
+        tag_field = response.xpath('//*[@class="subject_detail"]//div[@class="inner"]//span/text()').extract()
+        # animate['tag'] = [tag.extract() for tag in tag_field]
+        animate['tag'] = response.xpath('//*[@class="subject_tag_section"]//div[@class="inner"]//span/text()').extract()
         logging.debug(animate)
         request = scrapy.Request('http://bangumi.tv/subject/%s/persons' % animate['bangumi_id'],
                                  callback=self.parse_cast)
@@ -176,7 +189,10 @@ class BangumiAnimateSpider(scrapy.Spider):
                     ep_date = ""
                 else:
                     ep_date = ep_date[0]
-                    ep_date = datetime.datetime.strptime(ep_date, "%Y-%m-%d")
+                    try:
+                        ep_date = datetime.datetime.strptime(ep_date, "%Y-%m-%d")
+                    except:
+                        ep_date = datetime.datetime.strptime('1970-01-01', "%Y-%m-%d")
                 ep_japan = re.sub('\d+\.(.*?)', "", ep_japan)
 
                 ep_chinese = item_li.xpath('.//span[@class = "tip"]/text()')
@@ -192,8 +208,31 @@ class BangumiAnimateSpider(scrapy.Spider):
                 )
                 category_list[category_name].append(ep)
         animate['episode'] = category_list
+        request = scrapy.Request('http://bangumi.tv/subject/%s/comments' % animate['bangumi_id'],
+                                 callback=self.parse_comment)
+        request.meta['animate_data'] = animate
+        return request
+
+    def parse_comment(self, response):
+        animate = response.meta['animate_data']
+        pages = int(response.xpath('//*[@class="p_edge"]/text()').extract()[0].replace('\xa0','').split('/')[1][:-1])
+        animate['comments'] = list()
+        for i in range(1,pages+1):
+            nexturl = 'http://bangumi.tv/subject/{}/comments?page={}'.format(animate['bangumi_id'],i)
+            yield scrapy.Request(nexturl, callback = self.parse_comments, meta = response.meta)
+            # request.meta['animate_data'] = animate
         return animate
 
+    def parse_comments(self, response):
+        animate = response.meta['animate_data']
+        username = response.xpath('//*[@id="comment_box"]//a/text()').extract()
+        score = response.xpath('//*[@id="comment_box"]//div/div/span').re('<span class="sstars(.*?) starsinfo')
+        text = response.xpath('//p/text()').extract()
+        z = zip(username,score,text)
+        temp = [dict(username=a,score=b,text=c) for a,b,c in list(z)]
+        animate['comments'].extend(temp)
+        x = [dict(username=a,score=b,text=c) for a,b,c in list(z)]
+        return animate
 
 def get_field_value(selector, index=0):
     return selector[index] if len(selector) != 0 else None
