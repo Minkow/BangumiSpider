@@ -31,6 +31,10 @@ class AnimateCharacter(EmbeddedDocument):
     info = MapField(StringField())
     cv = ListField(EmbeddedDocumentField(CharacterVoice))
 
+class AnimateComment(EmbeddedDocument):
+    user = StringField()
+    score = FloatField()
+    text = StringField()
 
 class Animate(Document):
     name = StringField()
@@ -42,8 +46,11 @@ class Animate(Document):
     character = ListField(EmbeddedDocumentField(AnimateCharacter))
     tag = ListField()
     episode = MapField(ListField(EmbeddedDocumentField(AnimateEpisode)))
+    comments = ListField(EmbeddedDocument(AnimateComment))
     start_play = DateTimeField()
     episode_count = IntField()
     chinese_name = StringField()
+    score = FloatField()
+    rank = StringField()
     created = DateTimeField()
     updated = DateTimeField()
