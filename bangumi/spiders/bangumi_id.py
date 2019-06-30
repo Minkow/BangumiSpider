@@ -15,12 +15,12 @@ class BangumiIdSpider(scrapy.Spider):
     start_urls = []
     # start_urls = ['http://bangumi.tv/anime/browser?page=1']
     max_page = -1
-    id_type = "unknown"
+    id_type = "anime"
     subject_type = "anime"
 
     def __init__(self, **kwargs):
         logging.log(logging.DEBUG, f'{self.subject_type} subject spider,id type is {self.id_type}')
-        self.start_urls = [f'http://bangumi.tv/{self.subject_type}/browser?page=%s' % page for page in range(1, 20)]
+        self.start_urls = [f'http://bangumi.tv/{self.subject_type}/browser/?sort=rank&page=%s' % page for page in range(1, 221)]
         super().__init__(**kwargs)
 
     def parse(self, response: Response):
